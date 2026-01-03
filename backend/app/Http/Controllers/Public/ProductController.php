@@ -61,13 +61,22 @@ class ProductController extends Controller
         }
 
         // Sort
-        $sortBy = $request->get('sort', 'created_at');
-        $sortOrder = $request->get('order', 'desc');
+        $sort = $request->get('sort', 'newest');
         
-        if ($sortBy === 'price') {
-            $query->orderByRaw('COALESCE(sale_price, original_price) ' . $sortOrder);
-        } else {
-            $query->orderBy($sortBy, $sortOrder);
+        switch ($sort) {
+            case 'price_asc':
+                $query->orderByRaw('COALESCE(sale_price, original_price) ASC');
+                break;
+            case 'price_desc':
+                $query->orderByRaw('COALESCE(sale_price, original_price) DESC');
+                break;
+            case 'popular':
+                $query->orderBy('view_count', 'desc');
+                break;
+            case 'newest':
+            default:
+                $query->orderBy('created_at', 'desc');
+                break;
         }
 
         // Pagination
