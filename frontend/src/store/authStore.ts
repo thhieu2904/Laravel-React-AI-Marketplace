@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { Customer, RegisterData } from "../types";
+import type { Customer, RegisterData } from "../types";
 import { authService } from "../services";
 
 interface AuthState {
@@ -27,7 +27,13 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           const response = await authService.login(email, password);
-          const { token, user } = response.data;
+          // API returns: { success, data: { customer, token } }
+          const token = response.data?.token;
+          const user = response.data?.customer;
+
+          if (!token || !user) {
+            throw new Error("Invalid response from server");
+          }
 
           localStorage.setItem("token", token);
           set({
@@ -46,7 +52,13 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           const response = await authService.register(data);
-          const { token, user } = response.data;
+          // API returns: { success, data: { customer, token } }
+          const token = response.data?.token;
+          const user = response.data?.customer;
+
+          if (!token || !user) {
+            throw new Error("Invalid response from server");
+          }
 
           localStorage.setItem("token", token);
           set({

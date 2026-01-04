@@ -21,8 +21,8 @@ class CustomerAuthController extends Controller
             'email' => 'required|email|unique:customers,email',
             'password' => 'required|min:6|confirmed',
             'full_name' => 'required|string|max:100',
-            'phone' => 'nullable|string|max:20',
-            'address' => 'nullable|string',
+            'phone' => 'required|string|max:20',
+            'address' => 'required|string|max:500',
         ]);
 
         if ($validator->fails()) {
@@ -145,6 +145,115 @@ class CustomerAuthController extends Controller
                 'token_type' => 'bearer',
                 'expires_in' => config('jwt.ttl') * 60,
             ],
+        ]);
+    }
+
+    /**
+     * Change customer password
+     */
+    public function changePassword(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'current_password' => 'required',
+            'new_password' => 'required|min:6|confirmed',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $customer = auth('customer')->user();
+
+        if (!Hash::check($request->current_password, $customer->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mật khẩu hiện tại không đúng',
+            ], 400);
+        }
+
+        $customer->password = Hash::make($request->new_password);
+        $customer->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Đổi mật khẩu thành công',
+        ]);
+    }
+
+    /**
+     * Update customer profile
+     */
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'full_name' => 'required|string|max:100',
+            'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $customer = auth('customer')->user();
+        $customer->full_name = $request->full_name;
+        $customer->phone = $request->phone;
+        $customer->address = $request->address;
+        $customer->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cập nhật thông tin thành công',
+            'data' => $customer,
+        ]);
+    }
+
+    /**
+     * Request account action (lock/delete)
+     * Admin will review and process these requests
+     */
+    public function requestAccountAction(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'action' => 'required|in:lock,delete',
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $customer = auth('customer')->user();
+        $action = $request->action;
+        $reason = $request->reason ?? 'Không có lý do';
+
+        // Log the request for admin review
+        \Log::channel('daily')->info("Account Action Request", [
+            'customer_id' => $customer->id,
+            'customer_email' => $customer->email,
+            'customer_name' => $customer->full_name,
+            'action' => $action,
+            'reason' => $reason,
+            'requested_at' => now()->toDateTimeString(),
+        ]);
+
+        $actionText = $action === 'lock' ? 'khóa' : 'xóa';
+
+        return response()->json([
+            'success' => true,
+            'message' => "Yêu cầu {$actionText} tài khoản đã được gửi. Admin sẽ xem xét và liên hệ bạn qua email.",
         ]);
     }
 }

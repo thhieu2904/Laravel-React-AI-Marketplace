@@ -31,11 +31,15 @@ export function Login() {
 
     try {
       await login(email, password);
+      // Only navigate on success
       navigate(from, { replace: true });
     } catch (err: any) {
-      setError(
-        err.response?.data?.message || "Đăng nhập thất bại. Vui lòng thử lại."
-      );
+      console.error("Login error:", err);
+      const errorMessage =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Đăng nhập thất bại. Vui lòng thử lại.";
+      setError(errorMessage);
     }
   };
 

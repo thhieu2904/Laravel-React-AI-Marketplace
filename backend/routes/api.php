@@ -52,6 +52,9 @@ Route::prefix('customer')->group(function () {
     // Protected routes
     Route::middleware('auth:customer')->group(function () {
         Route::get('/me', [CustomerAuthController::class, 'me']);
+        Route::put('/profile', [CustomerAuthController::class, 'updateProfile']);
+        Route::post('/change-password', [CustomerAuthController::class, 'changePassword']);
+        Route::post('/account-request', [CustomerAuthController::class, 'requestAccountAction']);
         Route::post('/logout', [CustomerAuthController::class, 'logout']);
         Route::post('/refresh', [CustomerAuthController::class, 'refresh']);
     });
@@ -106,12 +109,19 @@ Route::prefix('admin')->group(function () {
         Route::put('/products/{id}', [AdminProductController::class, 'update']);
         Route::delete('/products/{id}', [AdminProductController::class, 'destroy']);
         Route::patch('/products/{id}/toggle-status', [AdminProductController::class, 'toggleStatus']);
+        Route::patch('/products/{id}/toggle-featured', [AdminProductController::class, 'toggleFeatured']);
 
         // Orders
         Route::get('/orders', [AdminOrderController::class, 'index']);
         Route::get('/orders/stats', [AdminOrderController::class, 'stats']);
         Route::get('/orders/{id}', [AdminOrderController::class, 'show']);
         Route::patch('/orders/{id}/status', [AdminOrderController::class, 'updateStatus']);
+
+        // Customers
+        Route::get('/customers', [\App\Http\Controllers\Admin\CustomerController::class, 'index']);
+        Route::get('/customers/stats', [\App\Http\Controllers\Admin\CustomerController::class, 'stats']);
+        Route::get('/customers/{id}', [\App\Http\Controllers\Admin\CustomerController::class, 'show']);
+        Route::patch('/customers/{id}/toggle-status', [\App\Http\Controllers\Admin\CustomerController::class, 'toggleStatus']);
 
         // Reviews
         Route::get('/reviews', [\App\Http\Controllers\Admin\ReviewController::class, 'index']);

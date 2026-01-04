@@ -42,6 +42,6 @@ export interface LoginResponse {
   success: boolean;
   data: {
     token: string;
-    user: Customer;
+    customer: Customer;
   };
 }

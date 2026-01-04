@@ -5,7 +5,6 @@ import {
   ShoppingCart,
   Users,
   Star,
-  Settings,
   LogOut,
   Menu,
   X,
@@ -25,7 +24,6 @@ const menuItems = [
   { path: "/admin/orders", label: "Đơn hàng", icon: ShoppingCart },
   { path: "/admin/customers", label: "Khách hàng", icon: Users },
   { path: "/admin/reviews", label: "Đánh giá", icon: Star },
-  { path: "/admin/settings", label: "Cài đặt", icon: Settings },
 ];
 
 export function AdminLayout() {

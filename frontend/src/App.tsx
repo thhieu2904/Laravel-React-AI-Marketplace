@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { PublicLayout } from "@/layouts";
 import AdminLayout from "@/layouts/AdminLayout";
 import { useAuthStore, useCartStore } from "@/store";
+import SessionExpiredModal from "@/components/layout/SessionExpiredModal";
 
 // Customer Pages
 import Home from "@/pages/Home";
@@ -18,6 +19,8 @@ import Profile from "@/pages/Profile";
 import Orders from "@/pages/Orders";
 import OrderDetail from "@/pages/OrderDetail";
 import MyReviews from "@/pages/MyReviews";
+import About from "@/pages/About";
+import Contact from "@/pages/Contact";
 
 // Admin Pages
 import AdminLogin from "@/pages/admin/AdminLogin";
@@ -27,24 +30,15 @@ import AdminOrders from "@/pages/admin/AdminOrders";
 import AdminReviews from "@/pages/admin/AdminReviews";
 import AdminCategories from "@/pages/admin/AdminCategories";
 import ProductEditor from "@/pages/admin/ProductEditor";
+import AdminOrderDetail from "@/pages/admin/AdminOrderDetail";
+import AdminCustomers from "@/pages/admin/AdminCustomers";
+import Settings from "@/pages/Settings";
 
 // Placeholder pages
-const Settings = () => (
-  <div>
-    <h2 className="text-xl font-bold">Cài đặt</h2>
-    <p className="text-muted-foreground mt-2">Tính năng đang phát triển...</p>
-  </div>
-);
 const AdminSettings = () => (
-  <div className="text-white">
-    <h2 className="text-xl font-bold">Cài đặt hệ thống</h2>
-    <p className="text-slate-400 mt-2">Tính năng đang phát triển...</p>
-  </div>
-);
-const AdminCustomers = () => (
-  <div className="text-white">
-    <h2 className="text-xl font-bold">Quản lý khách hàng</h2>
-    <p className="text-slate-400 mt-2">Tính năng đang phát triển...</p>
+  <div className="p-6">
+    <h2 className="text-xl font-bold text-gray-900">Cài đặt hệ thống</h2>
+    <p className="text-gray-500 mt-2">Tính năng đang phát triển...</p>
   </div>
 );
 const NotFound = () => (
@@ -78,6 +72,8 @@ function App() {
           <Route path="/thanh-toan" element={<Checkout />} />
           <Route path="/dang-nhap" element={<Login />} />
           <Route path="/dang-ky" element={<Register />} />
+          <Route path="/gioi-thieu" element={<About />} />
+          <Route path="/lien-he" element={<Contact />} />
 
           {/* Account Routes */}
           <Route path="/tai-khoan" element={<Account />}>
@@ -100,11 +96,13 @@ function App() {
           <Route path="products/new" element={<ProductEditor />} />
           <Route path="products/:id/edit" element={<ProductEditor />} />
           <Route path="orders" element={<AdminOrders />} />
+          <Route path="orders/:id" element={<AdminOrderDetail />} />
           <Route path="customers" element={<AdminCustomers />} />
           <Route path="reviews" element={<AdminReviews />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
       </Routes>
+      <SessionExpiredModal />
     </BrowserRouter>
   );
 }

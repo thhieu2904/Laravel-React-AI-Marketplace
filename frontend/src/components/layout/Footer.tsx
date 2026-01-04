@@ -8,16 +8,26 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* About */}
           <div>
-            <h3 className="font-bold text-lg mb-4">⚡ Điện Lạnh</h3>
+            <h3 className="font-bold text-lg mb-4">⚡ Điện Lạnh TVU</h3>
             <p className="text-muted-foreground text-sm mb-4">
               Chuyên cung cấp các sản phẩm điện lạnh chính hãng: máy lạnh, tủ
               lạnh, máy giặt với giá tốt nhất thị trường.
             </p>
             <div className="flex gap-3">
-              <a href="#" className="text-muted-foreground hover:text-primary">
+              <a
+                href="https://facebook.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-primary"
+              >
                 <Facebook className="h-5 w-5" />
               </a>
-              <a href="#" className="text-muted-foreground hover:text-primary">
+              <a
+                href="https://youtube.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-primary"
+              >
                 <Youtube className="h-5 w-5" />
               </a>
             </div>
@@ -67,36 +77,36 @@ export function Footer() {
             <h3 className="font-bold text-lg mb-4">Chính sách</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <a
-                  href="#"
+                <Link
+                  to="/gioi-thieu"
                   className="text-muted-foreground hover:text-foreground"
                 >
                   Chính sách bảo hành
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="#"
+                <Link
+                  to="/gioi-thieu"
                   className="text-muted-foreground hover:text-foreground"
                 >
                   Chính sách đổi trả
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="#"
+                <Link
+                  to="/gioi-thieu"
                   className="text-muted-foreground hover:text-foreground"
                 >
                   Chính sách giao hàng
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="#"
+                <Link
+                  to="/gioi-thieu"
                   className="text-muted-foreground hover:text-foreground"
                 >
                   Điều khoản sử dụng
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -108,25 +118,25 @@ export function Footer() {
               <li className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground" />
                 <span className="text-muted-foreground">
-                  123 Đường ABC, Quận 1, TP. Hồ Chí Minh
+                  126 Nguyễn Thiện Thành, Phường 5, Trà Vinh
                 </span>
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-muted-foreground" />
                 <a
-                  href="tel:19001234"
+                  href="tel:0123456789"
                   className="text-muted-foreground hover:text-foreground"
                 >
-                  1900 1234
+                  0123 456 789
                 </a>
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-muted-foreground" />
                 <a
-                  href="mailto:contact@dienlanh.com"
+                  href="mailto:contact@dienlanhtvu.vn"
                   className="text-muted-foreground hover:text-foreground"
                 >
-                  contact@dienlanh.com
+                  contact@dienlanhtvu.vn
                 </a>
               </li>
             </ul>

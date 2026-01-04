@@ -42,13 +42,49 @@ class PaymentController extends Controller
 
         // Check if already has pending transaction
         if ($order->paymentTransaction && $order->paymentTransaction->status === 'pending') {
+            $existingTxn = $order->paymentTransaction;
+            $provider = $existingTxn->provider;
+            
+            // Return existing payment info based on provider
+            if ($provider === 'sepay') {
+                $sepayConfig = config('services.payment.sepay');
+                $bankCode = $this->getBankCode($sepayConfig['bank_name'] ?? 'MB');
+                $qrUrl = sprintf(
+                    'https://img.vietqr.io/image/%s-%s-compact2.png?amount=%d&addInfo=%s&accountName=%s',
+                    $bankCode,
+                    $sepayConfig['bank_account'],
+                    (int) $order->total_amount,
+                    urlencode($existingTxn->request_id),
+                    urlencode($sepayConfig['account_name'] ?? 'Shop Điện Lạnh')
+                );
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Đã có giao dịch đang chờ thanh toán',
+                    'data' => [
+                        'provider' => 'sepay',
+                        'request_id' => $existingTxn->request_id,
+                        'qr_code_url' => $qrUrl,
+                        'bank_info' => [
+                            'bank_name' => $sepayConfig['bank_name'],
+                            'account_number' => $sepayConfig['bank_account'],
+                            'account_name' => $sepayConfig['account_name'] ?? 'NGUYEN THANH HIEU',
+                            'amount' => (int) $order->total_amount,
+                            'transfer_content' => $existingTxn->request_id,
+                        ],
+                    ],
+                ]);
+            }
+            
+            // Mock provider fallback
             return response()->json([
                 'success' => true,
                 'message' => 'Đã có giao dịch đang chờ xử lý',
                 'data' => [
-                    'request_id' => $order->paymentTransaction->request_id,
+                    'provider' => 'mock',
+                    'request_id' => $existingTxn->request_id,
                     'payment_url' => config('app.url') . '/api/payment/mock-checkout?' . http_build_query([
-                        'request_id' => $order->paymentTransaction->request_id,
+                        'request_id' => $existingTxn->request_id,
                     ]),
                 ],
             ]);
@@ -133,5 +169,25 @@ class PaymentController extends Controller
                 'created_at' => $transaction->created_at,
             ],
         ]);
+    }
+
+    /**
+     * Map bank name to VietQR bank code
+     */
+    protected function getBankCode(string $bankName): string
+    {
+        $bankCodes = [
+            'MB' => 'MB', 'MBBank' => 'MB', 'MB Bank' => 'MB',
+            'Techcombank' => 'TCB', 'TCB' => 'TCB',
+            'Vietcombank' => 'VCB', 'VCB' => 'VCB',
+            'BIDV' => 'BIDV', 'Agribank' => 'AGR',
+            'VietinBank' => 'CTG', 'CTG' => 'CTG',
+            'ACB' => 'ACB', 'VPBank' => 'VPB', 'VPB' => 'VPB',
+            'TPBank' => 'TPB', 'TPB' => 'TPB',
+            'Sacombank' => 'STB', 'STB' => 'STB',
+            'HDBank' => 'HDB', 'HDB' => 'HDB',
+            'OCB' => 'OCB', 'MSB' => 'MSB', 'SHB' => 'SHB', 'VIB' => 'VIB',
+        ];
+        return $bankCodes[$bankName] ?? 'MB';
     }
 }

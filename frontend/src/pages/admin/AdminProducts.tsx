@@ -1,10 +1,21 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Search, Edit, Trash2, Eye, EyeOff } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Eye,
+  EyeOff,
+  Filter,
+  Star,
+  Loader2,
+  Check,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -13,40 +24,105 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Pagination, type PaginationMeta } from "@/components/ui/pagination";
 import { useAdminAuthStore } from "@/store/adminAuthStore";
 import api from "@/services/api";
 import type { Product } from "@/types";
 
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  parent_id: number | null;
+  children?: Category[];
+}
+
 export function AdminProducts() {
   const { token } = useAdminAuthStore();
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState(""); // Debounced search
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [paginationMeta, setPaginationMeta] = useState<PaginationMeta>({
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0,
+  });
+
+  // Quick edit states
+  const [editingStock, setEditingStock] = useState<number | null>(null);
+  const [editingPrice, setEditingPrice] = useState<number | null>(null);
+  const [stockValue, setStockValue] = useState("");
+  const [priceValue, setPriceValue] = useState("");
+  const [salePriceValue, setSalePriceValue] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Fetch products when filters change
   useEffect(() => {
     fetchProducts();
+  }, [currentPage, searchQuery, selectedCategory]);
+
+  useEffect(() => {
+    fetchCategories();
   }, []);
 
   const fetchProducts = async () => {
+    setIsLoading(true);
     try {
-      // Use admin endpoint with auth
+      const params: Record<string, string | number> = {
+        page: currentPage,
+        per_page: 10,
+      };
+      if (searchQuery) params.search = searchQuery;
+      if (selectedCategory !== "all") params.category_id = selectedCategory;
+
       const response = await api.get("/admin/products", {
         headers: { Authorization: `Bearer ${token}` },
+        params,
       });
       setProducts(response.data.data || []);
+      if (response.data.meta) {
+        setPaginationMeta(response.data.meta);
+      }
     } catch (error) {
       console.error("Failed to fetch products:", error);
-      // Fallback to public endpoint
-      try {
-        const publicResponse = await api.get("/public/products", {
-          params: { per_page: 50 },
-        });
-        setProducts(publicResponse.data.data || []);
-      } catch {
-        console.error("Failed to fetch from public API");
-      }
+      setProducts([]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get("/admin/categories", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setCategories(response.data.data || []);
+    } catch (error) {
+      console.error("Failed to fetch categories:", error);
     }
   };
 
@@ -75,6 +151,63 @@ export function AdminProducts() {
     }
   };
 
+  const handleQuickUpdateStock = async (productId: number) => {
+    if (!stockValue.trim()) return;
+    setIsSaving(true);
+    try {
+      await api.put(
+        `/admin/products/${productId}`,
+        { stock_quantity: parseInt(stockValue) },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setEditingStock(null);
+      fetchProducts();
+    } catch (error) {
+      alert("Không thể cập nhật tồn kho");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleQuickUpdatePrice = async (productId: number) => {
+    if (!priceValue.trim()) return;
+    setIsSaving(true);
+    try {
+      await api.put(
+        `/admin/products/${productId}`,
+        {
+          original_price: parseFloat(priceValue),
+          sale_price: salePriceValue ? parseFloat(salePriceValue) : null,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setEditingPrice(null);
+      fetchProducts();
+    } catch (error) {
+      alert("Không thể cập nhật giá");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const toggleFeatured = async (productId: number) => {
+    try {
+      await api.patch(
+        `/admin/products/${productId}/toggle-featured`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      // Update local state immediately for better UX
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId ? { ...p, is_featured: !p.is_featured } : p
+        )
+      );
+    } catch (error) {
+      alert("Không thể cập nhật trạng thái nổi bật");
+    }
+  };
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
@@ -82,16 +215,43 @@ export function AdminProducts() {
     }).format(price);
   };
 
-  const filteredProducts = products.filter(
-    (p) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.brand?.toLowerCase().includes(search.toLowerCase())
-  );
+  const getCategoryName = (categoryId: number): string => {
+    for (const cat of categories) {
+      if (cat.id === categoryId) return cat.name;
+      if (cat.children) {
+        const child = cat.children.find((c) => c.id === categoryId);
+        if (child) return child.name;
+      }
+    }
+    return "—";
+  };
+
+  // Debounce search - trigger server fetch after user stops typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (search !== searchQuery) {
+        setSearchQuery(search);
+        setCurrentPage(1); // Reset to first page on new search
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Reset page when category changes
+  const handleCategoryChange = (value: string) => {
+    setSelectedCategory(value);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -109,99 +269,313 @@ export function AdminProducts() {
       </div>
 
       <Card className="bg-white shadow-sm">
-        <CardHeader className="border-b">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-sm">
+        <CardHeader className="border-b bg-gray-50/50">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="relative flex-1 w-full sm:max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Tìm sản phẩm..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-white"
               />
             </div>
-            <p className="text-sm text-gray-500">
-              {filteredProducts.length} sản phẩm
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Filter className="h-4 w-4 text-gray-500" />
+              <Select
+                value={selectedCategory}
+                onValueChange={handleCategoryChange}
+              >
+                <SelectTrigger className="w-full sm:w-[200px] bg-white">
+                  <SelectValue placeholder="Lọc theo danh mục" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả danh mục</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id.toString()}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <p className="text-sm text-gray-500 whitespace-nowrap">
+              {paginationMeta.total} sản phẩm
             </p>
           </div>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Sản phẩm</TableHead>
-                <TableHead>Giá</TableHead>
-                <TableHead>Kho</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead className="text-right">Thao tác</TableHead>
+              <TableRow className="bg-gray-50">
+                <TableHead className="w-[380px]">Sản phẩm</TableHead>
+                <TableHead className="w-[130px]">Danh mục</TableHead>
+                <TableHead className="w-[150px]">Giá</TableHead>
+                <TableHead className="w-[90px] text-center">Kho</TableHead>
+                <TableHead className="w-[100px]">Trạng thái</TableHead>
+                <TableHead className="w-[100px] text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProducts.map((product) => (
+              {products.map((product) => (
                 <TableRow key={product.id}>
-                  <TableCell>
+                  {/* Product Name - Fixed width with truncate */}
+                  <TableCell className="max-w-[380px]">
                     <div className="flex items-center gap-3">
                       <img
                         src={
                           product.images?.[0]?.image_url || "/placeholder.jpg"
                         }
                         alt={product.name}
-                        className="w-12 h-12 object-cover rounded"
+                        className="w-10 h-10 object-cover rounded flex-shrink-0"
                       />
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {product.name}
+                      <div className="min-w-0 flex-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1">
+                              <p className="font-medium text-gray-900 truncate max-w-[280px]">
+                                {product.name}
+                              </p>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      toggleFeatured(product.id);
+                                    }}
+                                    className="flex-shrink-0 p-0.5 hover:bg-amber-100 rounded transition-colors"
+                                  >
+                                    <Star
+                                      className={`h-4 w-4 ${
+                                        product.is_featured
+                                          ? "text-amber-500 fill-amber-500"
+                                          : "text-gray-300 hover:text-amber-400"
+                                      }`}
+                                    />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p>
+                                    {product.is_featured
+                                      ? "Bỏ nổi bật"
+                                      : "Đánh dấu nổi bật"}
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs">
+                            <p>{product.name}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <p className="text-xs text-gray-500 truncate">
+                          {product.brand}
                         </p>
-                        <p className="text-sm text-gray-500">{product.brand}</p>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-semibold text-green-600">
-                        {formatPrice(
-                          product.sale_price || product.original_price
-                        )}
-                      </p>
-                      {product.sale_price &&
-                        product.sale_price < product.original_price && (
-                          <p className="text-sm text-gray-400 line-through">
-                            {formatPrice(product.original_price)}
+
+                  {/* Category */}
+                  <TableCell className="w-[130px]">
+                    <span className="text-sm text-gray-600 truncate block">
+                      {getCategoryName(product.category_id)}
+                    </span>
+                  </TableCell>
+
+                  {/* Price - Quick Edit */}
+                  <TableCell className="w-[150px]">
+                    <Popover
+                      open={editingPrice === product.id}
+                      onOpenChange={(open) => {
+                        if (open) {
+                          setPriceValue(product.original_price.toString());
+                          setSalePriceValue(
+                            product.sale_price?.toString() || ""
+                          );
+                          setEditingPrice(product.id);
+                        } else {
+                          setEditingPrice(null);
+                        }
+                      }}
+                    >
+                      <PopoverTrigger asChild>
+                        <button className="text-left hover:bg-gray-100 rounded px-2 py-1 -mx-2 transition-colors group">
+                          <p className="font-semibold text-green-600">
+                            {formatPrice(
+                              product.sale_price || product.original_price
+                            )}
                           </p>
-                        )}
-                    </div>
+                          {product.sale_price &&
+                            product.sale_price < product.original_price && (
+                              <p className="text-xs text-gray-400 line-through">
+                                {formatPrice(product.original_price)}
+                              </p>
+                            )}
+                          <span className="text-[10px] text-gray-400 opacity-0 group-hover:opacity-100">
+                            Click để sửa
+                          </span>
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 p-3" align="start">
+                        <div className="space-y-3">
+                          <p className="font-medium text-sm">Cập nhật giá</p>
+                          <div className="space-y-2">
+                            <div>
+                              <label className="text-xs text-gray-500">
+                                Giá gốc
+                              </label>
+                              <Input
+                                type="number"
+                                value={priceValue}
+                                onChange={(e) => setPriceValue(e.target.value)}
+                                placeholder="VNĐ"
+                                className="h-8"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500">
+                                Giá khuyến mãi (tùy chọn)
+                              </label>
+                              <Input
+                                type="number"
+                                value={salePriceValue}
+                                onChange={(e) =>
+                                  setSalePriceValue(e.target.value)
+                                }
+                                placeholder="Để trống nếu không giảm"
+                                className="h-8"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => handleQuickUpdatePrice(product.id)}
+                              disabled={isSaving}
+                            >
+                              {isSaving ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Check className="h-3 w-3 mr-1" />
+                              )}
+                              Lưu
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setEditingPrice(null)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        product.stock_quantity > 0 ? "default" : "destructive"
-                      }
+
+                  {/* Stock - Quick Edit */}
+                  <TableCell className="w-[90px] text-center">
+                    <Popover
+                      open={editingStock === product.id}
+                      onOpenChange={(open) => {
+                        if (open) {
+                          setStockValue(product.stock_quantity.toString());
+                          setEditingStock(product.id);
+                        } else {
+                          setEditingStock(null);
+                        }
+                      }}
                     >
-                      {product.stock_quantity}
-                    </Badge>
+                      <PopoverTrigger asChild>
+                        <button
+                          className={`inline-flex items-center justify-center min-w-[45px] px-2.5 py-1 rounded-full text-sm font-semibold transition-colors hover:ring-2 hover:ring-offset-1 ${
+                            product.stock_quantity > 0
+                              ? "bg-blue-100 text-blue-700 hover:ring-blue-300"
+                              : "bg-red-100 text-red-700 hover:ring-red-300"
+                          }`}
+                        >
+                          {product.stock_quantity}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-48 p-3" align="center">
+                        <div className="space-y-3">
+                          <p className="font-medium text-sm">
+                            Cập nhật tồn kho
+                          </p>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={stockValue}
+                            onChange={(e) => setStockValue(e.target.value)}
+                            placeholder="Số lượng"
+                            className="h-8"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                handleQuickUpdateStock(product.id);
+                              }
+                            }}
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => handleQuickUpdateStock(product.id)}
+                              disabled={isSaving}
+                            >
+                              {isSaving ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Check className="h-3 w-3 mr-1" />
+                              )}
+                              Lưu
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setEditingStock(null)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={product.is_active ? "default" : "secondary"}
+
+                  {/* Status Toggle */}
+                  <TableCell className="w-[100px]">
+                    <button
+                      onClick={() => handleToggleActive(product)}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer ${
+                        product.is_active
+                          ? "bg-green-100 text-green-700 hover:bg-green-200"
+                          : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                      }`}
                     >
-                      {product.is_active ? "Hoạt động" : "Ẩn"}
-                    </Badge>
+                      {product.is_active ? (
+                        <>
+                          <Eye className="h-3.5 w-3.5" /> Hiện
+                        </>
+                      ) : (
+                        <>
+                          <EyeOff className="h-3.5 w-3.5" /> Ẩn
+                        </>
+                      )}
+                    </button>
                   </TableCell>
-                  <TableCell className="text-right">
+
+                  {/* Actions */}
+                  <TableCell className="w-[100px] text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleToggleActive(product)}
-                        title={product.is_active ? "Ẩn" : "Hiện"}
+                        className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        asChild
                       >
-                        {product.is_active ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button variant="ghost" size="icon" asChild>
                         <Link to={`/admin/products/${product.id}/edit`}>
                           <Edit className="h-4 w-4" />
                         </Link>
@@ -209,7 +583,7 @@ export function AdminProducts() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-destructive hover:text-destructive"
+                        className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
                         onClick={() => handleDelete(product)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -218,10 +592,10 @@ export function AdminProducts() {
                   </TableCell>
                 </TableRow>
               ))}
-              {filteredProducts.length === 0 && (
+              {products.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={6}
                     className="text-center py-8 text-gray-500"
                   >
                     Không có sản phẩm nào
@@ -230,6 +604,16 @@ export function AdminProducts() {
               )}
             </TableBody>
           </Table>
+
+          {/* Pagination */}
+          {paginationMeta.last_page > 1 && (
+            <div className="border-t px-4">
+              <Pagination
+                meta={paginationMeta}
+                onPageChange={handlePageChange}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

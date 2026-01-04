@@ -21,13 +21,16 @@ export function Register() {
     full_name: "",
     email: "",
     phone: "",
+    address: "",
     password: "",
     password_confirmation: "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -72,7 +75,7 @@ export function Register() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="full_name">Họ tên</Label>
+              <Label htmlFor="full_name">Họ tên *</Label>
               <Input
                 id="full_name"
                 name="full_name"
@@ -84,7 +87,7 @@ export function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email *</Label>
               <Input
                 id="email"
                 name="email"
@@ -97,7 +100,7 @@ export function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Số điện thoại</Label>
+              <Label htmlFor="phone">Số điện thoại *</Label>
               <Input
                 id="phone"
                 name="phone"
@@ -105,6 +108,20 @@ export function Register() {
                 placeholder="0912345678"
                 value={formData.phone}
                 onChange={handleChange}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="address">Địa chỉ giao hàng *</Label>
+              <textarea
+                id="address"
+                name="address"
+                placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố"
+                value={formData.address}
+                onChange={handleChange}
+                required
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
 

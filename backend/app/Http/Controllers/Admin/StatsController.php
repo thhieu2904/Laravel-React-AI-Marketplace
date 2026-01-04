@@ -81,15 +81,27 @@ class StatsController extends Controller
     }
 
     /**
-     * Revenue chart data (last 30 days)
+     * Revenue chart data (supports date range or days)
      */
     public function revenueChart(Request $request): JsonResponse
     {
-        $days = $request->get('days', 30);
-        $startDate = now()->subDays($days - 1)->startOfDay();
+        // Support both date range and days parameter
+        $startDateParam = $request->get('start_date');
+        $endDateParam = $request->get('end_date');
+        
+        if ($startDateParam && $endDateParam) {
+            // Use explicit date range
+            $startDate = \Carbon\Carbon::parse($startDateParam)->startOfDay();
+            $endDate = \Carbon\Carbon::parse($endDateParam)->endOfDay();
+        } else {
+            // Fallback to days parameter (backwards from today)
+            $days = $request->get('days', 30);
+            $startDate = now()->subDays($days - 1)->startOfDay();
+            $endDate = now()->endOfDay();
+        }
 
         $revenueByDay = Order::where('status', 'delivered')
-            ->where('created_at', '>=', $startDate)
+            ->whereBetween('created_at', [$startDate, $endDate])
             ->selectRaw('DATE(created_at) as date, SUM(total_amount) as revenue, COUNT(*) as orders')
             ->groupBy('date')
             ->orderBy('date')
@@ -98,13 +110,15 @@ class StatsController extends Controller
 
         // Fill in missing dates
         $chart = [];
-        for ($i = 0; $i < $days; $i++) {
-            $date = now()->subDays($days - 1 - $i)->format('Y-m-d');
+        $currentDate = $startDate->copy();
+        while ($currentDate <= $endDate) {
+            $dateStr = $currentDate->format('Y-m-d');
             $chart[] = [
-                'date' => $date,
-                'revenue' => (float) ($revenueByDay[$date]->revenue ?? 0),
-                'orders' => (int) ($revenueByDay[$date]->orders ?? 0),
+                'date' => $dateStr,
+                'revenue' => (float) ($revenueByDay[$dateStr]->revenue ?? 0),
+                'orders' => (int) ($revenueByDay[$dateStr]->orders ?? 0),
             ];
+            $currentDate->addDay();
         }
 
         return response()->json([

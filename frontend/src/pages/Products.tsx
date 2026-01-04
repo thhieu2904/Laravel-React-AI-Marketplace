@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { SlidersHorizontal, Grid3X3, List, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -10,9 +9,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Pagination, type PaginationMeta } from "@/components/ui/pagination";
 import { ProductCard } from "@/components/product";
-import { productService, ProductFilters } from "@/services/product.service";
-import { Product, Category } from "@/types";
+import {
+  productService,
+  type ProductFilters,
+} from "@/services/product.service";
+import type { Product, Category } from "@/types";
 import { cn } from "@/lib/utils";
 
 const sortOptions = [
@@ -28,7 +31,12 @@ export function Products() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [totalPages, setTotalPages] = useState(1);
+  const [paginationMeta, setPaginationMeta] = useState<PaginationMeta>({
+    current_page: 1,
+    last_page: 1,
+    per_page: 12,
+    total: 0,
+  });
 
   // Get filters from URL
   const filters: ProductFilters = {
@@ -51,7 +59,9 @@ export function Products() {
       try {
         const response = await productService.getProducts(filters);
         setProducts(response.data || []);
-        setTotalPages(response.meta?.last_page || 1);
+        if (response.meta) {
+          setPaginationMeta(response.meta);
+        }
       } catch (error) {
         console.error("Error fetching products:", error);
       } finally {
@@ -134,7 +144,7 @@ export function Products() {
                 <SlidersHorizontal className="h-4 w-4" />
                 Danh mục
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <Button
                   variant={!filters.category ? "secondary" : "ghost"}
                   size="sm"
@@ -144,17 +154,39 @@ export function Products() {
                   Tất cả
                 </Button>
                 {categories.map((cat) => (
-                  <Button
-                    key={cat.id}
-                    variant={
-                      filters.category === cat.slug ? "secondary" : "ghost"
-                    }
-                    size="sm"
-                    className="w-full justify-start"
-                    onClick={() => updateFilter("category", cat.slug)}
-                  >
-                    {cat.name}
-                  </Button>
+                  <div key={cat.id}>
+                    {/* Parent Category */}
+                    <Button
+                      variant={
+                        filters.category === cat.slug ? "secondary" : "ghost"
+                      }
+                      size="sm"
+                      className="w-full justify-start font-medium"
+                      onClick={() => updateFilter("category", cat.slug)}
+                    >
+                      {cat.name}
+                    </Button>
+                    {/* Children Categories */}
+                    {cat.children && cat.children.length > 0 && (
+                      <div className="ml-4 mt-1 space-y-1 border-l pl-2">
+                        {cat.children.map((child: Category) => (
+                          <Button
+                            key={child.id}
+                            variant={
+                              filters.category === child.slug
+                                ? "secondary"
+                                : "ghost"
+                            }
+                            size="sm"
+                            className="w-full justify-start text-sm h-8"
+                            onClick={() => updateFilter("category", child.slug)}
+                          >
+                            {child.name}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
@@ -195,21 +227,12 @@ export function Products() {
               </div>
 
               {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex justify-center gap-2 mt-8">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                    (page) => (
-                      <Button
-                        key={page}
-                        variant={filters.page === page ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => updateFilter("page", page.toString())}
-                      >
-                        {page}
-                      </Button>
-                    )
-                  )}
-                </div>
+              {paginationMeta.last_page > 1 && (
+                <Pagination
+                  meta={paginationMeta}
+                  onPageChange={(page) => updateFilter("page", page.toString())}
+                  className="mt-8 justify-center border-none"
+                />
               )}
             </>
           ) : (

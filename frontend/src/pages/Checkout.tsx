@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { CreditCard, Truck, Loader2, CheckCircle } from "lucide-react";
+import {
+  CreditCard,
+  Truck,
+  Loader2,
+  CheckCircle,
+  QrCode,
+  Copy,
+  Check,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +19,20 @@ import { Separator } from "@/components/ui/separator";
 import { useCartStore, useAuthStore } from "@/store";
 import api from "@/services/api";
 
+interface PaymentInfo {
+  provider: string;
+  request_id: string;
+  qr_code_url?: string;
+  payment_url?: string;
+  bank_info?: {
+    bank_name: string;
+    account_number: string;
+    account_name: string;
+    amount: number;
+    transfer_content: string;
+  };
+}
+
 export function Checkout() {
   const navigate = useNavigate();
   const { items, totalPrice, clearCart } = useCartStore();
@@ -20,6 +42,8 @@ export function Checkout() {
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderCode, setOrderCode] = useState("");
   const [error, setError] = useState("");
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const [formData, setFormData] = useState({
     shipping_name: user?.full_name || "",
@@ -42,6 +66,12 @@ export function Checkout() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -50,19 +80,21 @@ export function Checkout() {
     try {
       const response = await api.post("/orders", formData);
       if (response.data.success) {
-        setOrderCode(response.data.data.order_code);
-        setOrderSuccess(true);
+        const newOrderCode = response.data.data.order_code;
+        setOrderCode(newOrderCode);
         await clearCart();
 
-        // If online payment, redirect to payment page
+        // If online payment, create payment and show QR
         if (formData.payment_method === "online") {
           const paymentRes = await api.post("/payment/create", {
-            order_id: response.data.data.id,
+            order_code: newOrderCode,
           });
-          if (paymentRes.data.success && paymentRes.data.data.payment_url) {
-            window.location.href = paymentRes.data.data.payment_url;
+          if (paymentRes.data.success) {
+            setPaymentInfo(paymentRes.data.data);
           }
         }
+
+        setOrderSuccess(true);
       }
     } catch (err: any) {
       setError(
@@ -95,6 +127,130 @@ export function Checkout() {
     );
   }
 
+  // Show QR payment page for online payment
+  if (orderSuccess && paymentInfo?.qr_code_url && paymentInfo?.bank_info) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-2xl">
+        <Card>
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <QrCode className="h-12 w-12 text-primary" />
+            </div>
+            <CardTitle className="text-xl">Quét mã QR để thanh toán</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Mã đơn hàng: <span className="font-semibold">{orderCode}</span>
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* QR Code */}
+            <div className="flex justify-center">
+              <img
+                src={paymentInfo.qr_code_url}
+                alt="QR Code thanh toán"
+                className="w-64 h-64 border rounded-lg"
+              />
+            </div>
+
+            {/* Bank Info */}
+            <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+              <h3 className="font-semibold text-center mb-4">
+                Hoặc chuyển khoản thủ công
+              </h3>
+
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Ngân hàng:</span>
+                <span className="font-medium">
+                  {paymentInfo.bank_info.bank_name}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Số tài khoản:</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">
+                    {paymentInfo.bank_info.account_number}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() =>
+                      copyToClipboard(paymentInfo.bank_info!.account_number)
+                    }
+                  >
+                    {copied ? (
+                      <Check className="h-3 w-3" />
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Chủ tài khoản:</span>
+                <span className="font-medium">
+                  {paymentInfo.bank_info.account_name}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Số tiền:</span>
+                <span className="font-semibold text-primary">
+                  {formatPrice(paymentInfo.bank_info.amount)}
+                </span>
+              </div>
+
+              <Separator />
+
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Nội dung CK:</span>
+                <div className="flex items-center gap-2">
+                  <code className="bg-background px-2 py-1 rounded text-sm font-mono">
+                    {paymentInfo.bank_info.transfer_content}
+                  </code>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() =>
+                      copyToClipboard(paymentInfo.bank_info!.transfer_content)
+                    }
+                  >
+                    {copied ? (
+                      <Check className="h-3 w-3" />
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+              <p className="text-sm text-amber-700 dark:text-amber-400">
+                ⚠️ <strong>Quan trọng:</strong> Vui lòng nhập đúng nội dung
+                chuyển khoản để hệ thống tự động xác nhận thanh toán.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <Button asChild className="flex-1">
+                <Link to={`/tai-khoan/don-hang/${orderCode}`}>
+                  Xem đơn hàng
+                </Link>
+              </Button>
+              <Button variant="outline" asChild className="flex-1">
+                <Link to="/san-pham">Tiếp tục mua sắm</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show COD success page
   if (orderSuccess) {
     return (
       <div className="container mx-auto px-4 py-16 text-center max-w-md">
@@ -213,9 +369,9 @@ export function Checkout() {
                   <div className="flex items-center space-x-3 p-4 border rounded-lg">
                     <RadioGroupItem value="online" id="online" />
                     <Label htmlFor="online" className="flex-1 cursor-pointer">
-                      <div className="font-medium">Thanh toán online</div>
+                      <div className="font-medium">Chuyển khoản ngân hàng</div>
                       <div className="text-sm text-muted-foreground">
-                        Chuyển khoản ngân hàng qua cổng thanh toán
+                        Quét mã QR hoặc chuyển khoản thủ công
                       </div>
                     </Label>
                   </div>

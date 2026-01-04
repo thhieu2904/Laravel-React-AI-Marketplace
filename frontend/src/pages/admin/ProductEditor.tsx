@@ -61,6 +61,7 @@ interface Category {
   id: number;
   name: string;
   slug: string;
+  children?: Category[];
 }
 
 interface Specification {
@@ -73,9 +74,10 @@ const uploadToCloudinary = async (file: File): Promise<string> => {
   const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
   const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
-  if (!cloudName || cloudName === "your_cloud_name") {
-    // Fallback: use placeholder
-    return URL.createObjectURL(file);
+  if (!cloudName || !uploadPreset) {
+    throw new Error(
+      "Cloudinary chưa được cấu hình. Vui lòng kiểm tra file .env"
+    );
   }
 
   const formData = new FormData();
@@ -86,6 +88,11 @@ const uploadToCloudinary = async (file: File): Promise<string> => {
     `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
     { method: "POST", body: formData }
   );
+
+  if (!response.ok) {
+    throw new Error("Upload thất bại. Vui lòng kiểm tra cấu hình Cloudinary.");
+  }
+
   const data = await response.json();
   return data.secure_url;
 };
@@ -99,6 +106,7 @@ export function ProductEditor() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedParentId, setSelectedParentId] = useState<string>("");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
@@ -173,7 +181,30 @@ export function ProductEditor() {
   const fetchCategories = async () => {
     try {
       const response = await api.get("/public/categories");
-      setCategories(response.data.data || []);
+      const data = response.data.data || [];
+      setCategories(data);
+
+      // If editing, determine parent category from category_id
+      if (formData.category_id) {
+        const catId = parseInt(formData.category_id);
+        // Check if it's a root category
+        const rootCat = data.find((c: Category) => c.id === catId);
+        if (rootCat) {
+          // It's a root category without meaningful children, keep as is
+          setSelectedParentId(String(catId));
+        } else {
+          // It's a child, find the parent
+          for (const parent of data) {
+            const child = parent.children?.find(
+              (c: Category) => c.id === catId
+            );
+            if (child) {
+              setSelectedParentId(String(parent.id));
+              break;
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error("Failed to fetch categories:", error);
     }
@@ -199,6 +230,28 @@ export function ProductEditor() {
         is_featured: product.is_featured,
         is_active: product.is_active,
       });
+
+      // Determine parent category from category_id
+      const catId = product.category_id;
+      // Fetch fresh categories to find parent
+      const catResponse = await api.get("/public/categories");
+      const allCategories = catResponse.data.data || [];
+      setCategories(allCategories);
+
+      // Check if it's a root category
+      const rootCat = allCategories.find((c: Category) => c.id === catId);
+      if (rootCat) {
+        setSelectedParentId(String(catId));
+      } else {
+        // It's a child, find the parent
+        for (const parent of allCategories) {
+          const child = parent.children?.find((c: Category) => c.id === catId);
+          if (child) {
+            setSelectedParentId(String(parent.id));
+            break;
+          }
+        }
+      }
 
       if (product.images) {
         setProductImages(
@@ -361,7 +414,7 @@ export function ProductEditor() {
         description: editor?.getHTML() || "",
         specifications: specsObject,
         images: productImages.map((img, index) => ({
-          image_url: img.url,
+          url: img.url,
           is_primary: img.is_primary,
           sort_order: index,
         })),
@@ -800,16 +853,31 @@ export function ProductEditor() {
               <CardTitle>Phân loại & Giá</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Parent Category */}
               <div className="space-y-2">
-                <Label>Danh mục *</Label>
+                <Label>Danh mục chính *</Label>
                 <Select
-                  value={formData.category_id}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, category_id: value })
-                  }
+                  value={selectedParentId}
+                  onValueChange={(value) => {
+                    setSelectedParentId(value);
+                    // Reset child selection
+                    const parent = categories.find(
+                      (c) => String(c.id) === value
+                    );
+                    if (
+                      parent &&
+                      (!parent.children || parent.children.length === 0)
+                    ) {
+                      // No children, use parent directly
+                      setFormData({ ...formData, category_id: value });
+                    } else {
+                      // Has children, wait for child selection
+                      setFormData({ ...formData, category_id: "" });
+                    }
+                  }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Chọn danh mục" />
+                    <SelectValue placeholder="Chọn danh mục chính" />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((cat) => (
@@ -820,6 +888,39 @@ export function ProductEditor() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Child Category (if parent has children) */}
+              {(() => {
+                const parentCat = categories.find(
+                  (c) => String(c.id) === selectedParentId
+                );
+                if (parentCat?.children && parentCat.children.length > 0) {
+                  return (
+                    <div className="space-y-2">
+                      <Label>Danh mục con *</Label>
+                      <Select
+                        value={formData.category_id}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, category_id: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn danh mục con" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {parentCat.children.map((child) => (
+                            <SelectItem key={child.id} value={String(child.id)}>
+                              {child.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
               <div className="space-y-2">
                 <Label htmlFor="brand">Thương hiệu</Label>
                 <Input
@@ -935,7 +1036,7 @@ export function ProductEditor() {
                   multiple
                   onChange={handleImageUpload}
                   className="hidden"
-                  disabled={uploadingImage || productImages.length >= 5}
+                  disabled={uploadingImage || productImages.length >= 6}
                 />
                 {uploadingImage ? (
                   <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
@@ -943,9 +1044,9 @@ export function ProductEditor() {
                   <Upload className="h-8 w-8 text-gray-400" />
                 )}
                 <span className="text-sm text-gray-500 mt-2">
-                  {productImages.length >= 5
-                    ? "Đã đủ 5 ảnh"
-                    : "Click để upload (tối đa 5 ảnh)"}
+                  {productImages.length >= 6
+                    ? "Đã đủ 6 ảnh"
+                    : `Click để upload (${productImages.length}/6 ảnh)`}
                 </span>
               </label>
 

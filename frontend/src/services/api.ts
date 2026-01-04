@@ -1,4 +1,6 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
+import { useSessionStore } from "@/store/sessionStore";
+import { useAdminAuthStore } from "@/store/adminAuthStore";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:8000/api";
@@ -31,10 +33,31 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      window.location.href = "/dang-nhap";
+      const url = error.config?.url || "";
+
+      // Don't show modal for auth endpoints (login/register) - let component handle error
+      const isAuthEndpoint =
+        url.includes("/login") || url.includes("/register");
+
+      // Only show session expired modal if user was authenticated (had token in request)
+      const hadAuthHeader = error.config?.headers?.Authorization;
+
+      if (!isAuthEndpoint && hadAuthHeader) {
+        // Check if this was an admin request
+        const isAdminRequest = url.includes("/admin");
+
+        if (isAdminRequest) {
+          // Admin token expired - call store logout to clear both localStorage AND Zustand state
+          useAdminAuthStore.getState().logout();
+        } else {
+          // Customer token expired - clear customer storage
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+        }
+
+        // Show session expired modal
+        useSessionStore.getState().setSessionExpired(true);
+      }
     }
     return Promise.reject(error);
   }

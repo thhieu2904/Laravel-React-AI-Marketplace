@@ -3,6 +3,7 @@ import { MessageCircle, X, Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   id: string;
@@ -139,7 +140,13 @@ export function ChatWidget() {
                     : "bg-muted"
                 )}
               >
-                {msg.content}
+                {msg.sender === "bot" ? (
+                  <div className="prose prose-sm max-w-none dark:prose-invert [&>*]:my-1 [&>ul]:my-2 [&>ol]:my-2 [&>p]:mb-2 [&>ol]:pl-4 [&>ul]:pl-4">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </div>
+                ) : (
+                  msg.content
+                )}
               </div>
             ))}
             {isLoading && (

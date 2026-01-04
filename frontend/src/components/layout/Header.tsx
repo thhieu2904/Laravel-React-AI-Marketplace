@@ -186,6 +186,20 @@ export function Header() {
             >
               Sản phẩm
             </Link>
+            <Link
+              to="/gioi-thieu"
+              className="block py-2"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Giới thiệu
+            </Link>
+            <Link
+              to="/lien-he"
+              className="block py-2"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Liên hệ
+            </Link>
             {!isAuthenticated && (
               <>
                 <Link

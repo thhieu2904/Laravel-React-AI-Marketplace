@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { productService } from "@/services";
-import { Product, Category } from "@/types";
+import type { Product, Category } from "@/types";
 import { ProductCard } from "@/components/product";
 
 const features = [
@@ -68,8 +68,9 @@ export function Home() {
                 size="lg"
                 variant="outline"
                 className="bg-transparent border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10"
+                asChild
               >
-                Liên hệ tư vấn
+                <Link to="/lien-he">Liên hệ tư vấn</Link>
               </Button>
             </div>
           </div>
@@ -117,14 +118,16 @@ export function Home() {
                   to={`/danh-muc/${category.slug}`}
                   className="group bg-muted rounded-lg p-6 text-center hover:bg-muted/80 transition-colors"
                 >
-                  <div className="text-4xl mb-3">
-                    {category.slug.includes("may-lanh")
-                      ? "❄️"
-                      : category.slug.includes("tu-lanh")
-                      ? "🧊"
-                      : category.slug.includes("may-giat")
-                      ? "🧺"
-                      : "🔌"}
+                  <div className="w-16 h-16 mx-auto mb-3 rounded-lg overflow-hidden bg-white flex items-center justify-center">
+                    {category.image ? (
+                      <img
+                        src={category.image}
+                        alt={category.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-3xl">📦</span>
+                    )}
                   </div>
                   <h3 className="font-medium group-hover:text-primary transition-colors">
                     {category.name}

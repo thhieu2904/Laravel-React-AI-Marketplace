@@ -42,8 +42,15 @@ return [
     */
     'payment' => [
         'provider' => env('PAYMENT_PROVIDER', 'mock'),
-        'sepay_api_key' => env('SEPAY_API_KEY'),
-        'sepay_secret' => env('SEPAY_SECRET'),
+        'sepay' => [
+            'merchant_id' => env('SEPAY_MERCHANT_ID'),
+            'secret_key' => env('SEPAY_SECRET_KEY'),
+            'api_url' => env('SEPAY_API_URL', 'https://my.sepay.vn/userapi'),
+            'bank_account' => env('SEPAY_BANK_ACCOUNT'),
+            'bank_name' => env('SEPAY_BANK_NAME'),
+            'account_name' => env('SEPAY_ACCOUNT_NAME', 'DIEN LANH SHOP'),
+            'test_amount' => env('SEPAY_TEST_AMOUNT', 0), // 0 = use real amount
+        ],
     ],
 
     /*

@@ -16,9 +16,16 @@ class CategoryController extends Controller
      */
     public function index(): JsonResponse
     {
-        $categories = Category::with(['children', 'parent:id,name'])
+        // Return tree structure: only roots, with sorted children
+        $categories = Category::whereNull('parent_id')
+            ->with(['children' => function ($query) {
+                $query->orderBy('sort_order')
+                      ->orderBy('name')
+                      ->withCount('products');
+            }, 'parent:id,name'])
             ->withCount('products')
             ->orderBy('sort_order')
+            ->orderBy('name')
             ->get();
 
         return response()->json([

@@ -285,4 +285,28 @@ class ProductController extends Controller
             'data' => $product,
         ]);
     }
+
+    /**
+     * Toggle product featured status
+     */
+    public function toggleFeatured(int $id): JsonResponse
+    {
+        $product = Product::find($id);
+
+        if (!$product) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy sản phẩm',
+            ], 404);
+        }
+
+        $product->is_featured = !$product->is_featured;
+        $product->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $product->is_featured ? 'Đã đánh dấu nổi bật' : 'Đã bỏ đánh dấu nổi bật',
+            'data' => $product,
+        ]);
+    }
 }

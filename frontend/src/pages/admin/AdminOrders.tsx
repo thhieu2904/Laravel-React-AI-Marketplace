@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Search, CheckCircle, XCircle, Truck } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Search, CheckCircle, XCircle, Truck, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -19,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Pagination, type PaginationMeta } from "@/components/ui/pagination";
 import { useAdminAuthStore } from "@/store/adminAuthStore";
 import api from "@/services/api";
 import type { Order } from "@/types";
@@ -33,24 +35,60 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 };
 
 export function AdminOrders() {
+  const navigate = useNavigate();
   const { token } = useAdminAuthStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [paginationMeta, setPaginationMeta] = useState<PaginationMeta>({
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0,
+  });
+
+  // Fetch when filters change
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [currentPage, searchQuery, statusFilter]);
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (search !== searchQuery) {
+        setSearchQuery(search);
+        setCurrentPage(1);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const fetchOrders = async () => {
+    setIsLoading(true);
     try {
+      const params: Record<string, string | number> = {
+        page: currentPage,
+        per_page: 10,
+      };
+      if (searchQuery) params.search = searchQuery;
+      if (statusFilter !== "all") params.status = statusFilter;
+
       const response = await api.get("/admin/orders", {
         headers: { Authorization: `Bearer ${token}` },
+        params,
       });
       setOrders(response.data.data || []);
+      if (response.data.meta) {
+        setPaginationMeta(response.data.meta);
+      }
     } catch (error) {
       console.error("Failed to fetch orders:", error);
+      setOrders([]);
     } finally {
       setIsLoading(false);
     }
@@ -86,14 +124,15 @@ export function AdminOrders() {
     });
   };
 
-  const filteredOrders = orders.filter((order) => {
-    const matchesSearch =
-      order.order_code.toLowerCase().includes(search.toLowerCase()) ||
-      order.shipping_name?.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" || order.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const handleStatusChange = (value: string) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   if (isLoading) {
     return (
@@ -119,7 +158,7 @@ export function AdminOrders() {
                 className="pl-10"
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={handleStatusChange}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Trạng thái" />
               </SelectTrigger>
@@ -133,7 +172,7 @@ export function AdminOrders() {
               </SelectContent>
             </Select>
             <p className="text-sm text-gray-500">
-              {filteredOrders.length} đơn hàng
+              {paginationMeta.total} đơn hàng
             </p>
           </div>
         </CardHeader>
@@ -150,7 +189,7 @@ export function AdminOrders() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredOrders.map((order) => {
+              {orders.map((order) => {
                 const status =
                   statusConfig[order.status] || statusConfig.pending;
                 return (
@@ -179,6 +218,15 @@ export function AdminOrders() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-slate-600 hover:text-slate-800 hover:bg-slate-100"
+                          onClick={() => navigate(`/admin/orders/${order.id}`)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Chi tiết
+                        </Button>
                         {order.status === "pending" && (
                           <>
                             <Button
@@ -236,7 +284,7 @@ export function AdminOrders() {
                   </TableRow>
                 );
               })}
-              {filteredOrders.length === 0 && (
+              {orders.length === 0 && (
                 <TableRow>
                   <TableCell
                     colSpan={6}
@@ -248,6 +296,16 @@ export function AdminOrders() {
               )}
             </TableBody>
           </Table>
+
+          {/* Pagination */}
+          {paginationMeta.last_page > 1 && (
+            <div className="border-t px-4">
+              <Pagination
+                meta={paginationMeta}
+                onPageChange={handlePageChange}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

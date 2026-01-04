@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
+use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,8 +20,20 @@ class ProductController extends Controller
                 $q->where('is_primary', true);
             }]);
 
-        // Filter by category
-        if ($request->has('category_id')) {
+        // Filter by category (support both slug and id)
+        if ($request->has('category')) {
+            $categorySlug = $request->category;
+            $category = Category::where('slug', $categorySlug)->first();
+            
+            if ($category) {
+                // Include category and its children
+                $categoryIds = [$category->id];
+                $childIds = Category::where('parent_id', $category->id)->pluck('id')->toArray();
+                $categoryIds = array_merge($categoryIds, $childIds);
+                
+                $query->whereIn('category_id', $categoryIds);
+            }
+        } elseif ($request->has('category_id')) {
             $query->where('category_id', $request->category_id);
         }
 
