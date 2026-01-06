@@ -1,0 +1,58 @@
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+.fleet/
+.nova/
+.zed/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment Variables
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+public/build/
+public/hot/
+public/storage/
+
+# Laravel specific
+/backend/.phpactor.json
+/backend/.phpunit.result.cache
+/backend/.phpunit.cache
+/backend/auth.json
+/backend/storage/*.key
+/backend/storage/pail
+
+# Local development
+*.local
+Homestead.json
+Homestead.yaml
+
+# Documentation & Setup
+*.md
+setup.bat
