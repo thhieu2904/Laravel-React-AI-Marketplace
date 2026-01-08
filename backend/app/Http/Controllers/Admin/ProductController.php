@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductImage;
+use App\Models\OrderItem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -239,6 +240,8 @@ class ProductController extends Controller
 
     /**
      * Delete product
+     * - If product has order history: soft delete (set is_active = false)
+     * - If product has no orders: hard delete (remove from database)
      */
     public function destroy(int $id): JsonResponse
     {
@@ -251,15 +254,30 @@ class ProductController extends Controller
             ], 404);
         }
 
-        // Delete images first (cascade should handle this but being explicit)
-        ProductImage::where('product_id', $id)->delete();
-        
-        $product->delete();
+        // Check if product has any order history
+        $hasOrders = OrderItem::where('product_id', $id)->exists();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Xóa sản phẩm thành công',
-        ]);
+        if ($hasOrders) {
+            // Soft delete: hide the product but preserve data for order history
+            $product->is_active = false;
+            $product->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Đã ẩn sản phẩm. Sản phẩm không thể xóa hoàn toàn vì đã có đơn hàng liên quan.',
+                'deleted' => false,
+            ]);
+        } else {
+            // Hard delete: remove product and its images completely
+            ProductImage::where('product_id', $id)->delete();
+            $product->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Đã xóa sản phẩm hoàn toàn khỏi hệ thống.',
+                'deleted' => true,
+            ]);
+        }
     }
 
     /**

@@ -37,6 +37,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -79,6 +87,13 @@ export function AdminProducts() {
   const [priceValue, setPriceValue] = useState("");
   const [salePriceValue, setSalePriceValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  // Delete modal state
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    product: Product | null;
+    isDeleting: boolean;
+  }>({ isOpen: false, product: null, isDeleting: false });
 
   // Fetch products when filters change
   useEffect(() => {
@@ -139,15 +154,28 @@ export function AdminProducts() {
     }
   };
 
-  const handleDelete = async (product: Product) => {
-    if (!confirm(`Xóa sản phẩm "${product.name}"?`)) return;
+  const handleDelete = (product: Product) => {
+    setDeleteModal({ isOpen: true, product, isDeleting: false });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal.product) return;
+    setDeleteModal((prev) => ({ ...prev, isDeleting: true }));
     try {
-      await api.delete(`/admin/products/${product.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await api.delete(
+        `/admin/products/${deleteModal.product.id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setDeleteModal({ isOpen: false, product: null, isDeleting: false });
+      // Show success message from API (different message for soft vs hard delete)
+      alert(response.data.message || "Thao tác thành công");
       fetchProducts();
     } catch (error) {
-      alert("Không thể xóa sản phẩm");
+      console.error("Failed to delete product:", error);
+      alert("Có lỗi xảy ra khi xử lý sản phẩm");
+      setDeleteModal((prev) => ({ ...prev, isDeleting: false }));
     }
   };
 
@@ -616,6 +644,79 @@ export function AdminProducts() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog
+        open={deleteModal.isOpen}
+        onOpenChange={(open) => {
+          if (!open && !deleteModal.isDeleting) {
+            setDeleteModal({ isOpen: false, product: null, isDeleting: false });
+          }
+        }}
+      >
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle className="text-red-600 flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              Xác nhận xóa sản phẩm
+            </DialogTitle>
+            <DialogDescription className="space-y-3 pt-2">
+              <p>
+                Bạn có chắc chắn muốn xóa sản phẩm{" "}
+                <strong className="text-gray-900">
+                  "{deleteModal.product?.name}"
+                </strong>
+                ?
+              </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                <strong>Lưu ý:</strong>
+                <ul className="list-disc list-inside mt-1 space-y-1">
+                  <li>
+                    Nếu sản phẩm <b>chưa có đơn hàng</b>: sẽ xóa hoàn toàn khỏi
+                    hệ thống
+                  </li>
+                  <li>
+                    Nếu sản phẩm <b>đã có đơn hàng</b>: sẽ chỉ ẩn để bảo toàn
+                    lịch sử
+                  </li>
+                </ul>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() =>
+                setDeleteModal({
+                  isOpen: false,
+                  product: null,
+                  isDeleting: false,
+                })
+              }
+              disabled={deleteModal.isDeleting}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleteModal.isDeleting}
+            >
+              {deleteModal.isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Đang xử lý...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Xóa sản phẩm
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

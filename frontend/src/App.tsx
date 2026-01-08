@@ -9,7 +9,6 @@ import SessionExpiredModal from "@/components/layout/SessionExpiredModal";
 import Home from "@/pages/Home";
 import Products from "@/pages/Products";
 import ProductDetail from "@/pages/ProductDetail";
-import Category from "@/pages/Category";
 import Cart from "@/pages/Cart";
 import Checkout from "@/pages/Checkout";
 import Login from "@/pages/Login";
@@ -67,7 +66,6 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/san-pham" element={<Products />} />
           <Route path="/san-pham/:slug" element={<ProductDetail />} />
-          <Route path="/danh-muc/:slug" element={<Category />} />
           <Route path="/gio-hang" element={<Cart />} />
           <Route path="/thanh-toan" element={<Checkout />} />
           <Route path="/dang-nhap" element={<Login />} />

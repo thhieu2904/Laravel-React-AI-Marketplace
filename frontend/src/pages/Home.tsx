@@ -115,7 +115,7 @@ export function Home() {
               {categories.slice(0, 4).map((category) => (
                 <Link
                   key={category.id}
-                  to={`/danh-muc/${category.slug}`}
+                  to={`/san-pham?category=${category.slug}`}
                   className="group bg-muted rounded-lg p-6 text-center hover:bg-muted/80 transition-colors"
                 >
                   <div className="w-16 h-16 mx-auto mb-3 rounded-lg overflow-hidden bg-white flex items-center justify-center">
