@@ -1,17 +1,9 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { ChevronDown, Home, Package, Info, Phone } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ChevronRight, Home, Package, Info, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { productService } from "@/services";
-import { Category } from "@/types";
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu";
+import type { Category } from "@/types";
 
 const navLinks = [
   { href: "/", label: "Trang chủ", icon: Home },
@@ -22,7 +14,10 @@ const navLinks = [
 
 export function Navbar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeParent, setActiveParent] = useState<number | null>(null);
 
   useEffect(() => {
     productService
@@ -33,50 +28,112 @@ export function Navbar() {
       .catch(() => {});
   }, []);
 
+  const handleCategoryClick = (slug: string) => {
+    setIsOpen(false);
+    setActiveParent(null);
+    navigate(`/san-pham?category=${slug}`);
+  };
+
   return (
     <nav className="bg-muted/50 border-b sticky top-16 z-30">
       <div className="container mx-auto px-4">
         <div className="flex h-12 items-center gap-6">
           {/* Category Dropdown */}
-          <NavigationMenu>
-            <NavigationMenuList>
-              <NavigationMenuItem>
-                <NavigationMenuTrigger className="bg-primary text-primary-foreground hover:bg-primary/90">
-                  <Package className="h-4 w-4 mr-2" />
-                  Danh mục
-                </NavigationMenuTrigger>
-                <NavigationMenuContent>
-                  <ul className="grid w-[300px] gap-1 p-2">
-                    {categories.length > 0 ? (
-                      categories.map((category) => (
-                        <li key={category.id}>
-                          <NavigationMenuLink asChild>
-                            <Link
-                              to={`/danh-muc/${category.slug}`}
-                              className="block select-none rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                            >
+          <div
+            className="relative"
+            onMouseEnter={() => setIsOpen(true)}
+            onMouseLeave={() => {
+              setIsOpen(false);
+              setActiveParent(null);
+            }}
+          >
+            <button className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium">
+              <Package className="h-4 w-4" />
+              Danh mục
+              <ChevronRight
+                className={cn(
+                  "h-4 w-4 transition-transform",
+                  isOpen && "rotate-90"
+                )}
+              />
+            </button>
+
+            {/* Main Dropdown */}
+            {isOpen && (
+              <div className="absolute left-0 top-full pt-1 z-50">
+                <div className="bg-popover border rounded-md shadow-lg min-w-[280px]">
+                  {categories.length > 0 ? (
+                    <ul className="py-2">
+                      {categories.map((category) => (
+                        <li
+                          key={category.id}
+                          className="relative"
+                          onMouseEnter={() => setActiveParent(category.id)}
+                        >
+                          <button
+                            onClick={() => handleCategoryClick(category.slug)}
+                            className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-accent transition-colors"
+                          >
+                            <div>
                               <div className="text-sm font-medium">
                                 {category.name}
                               </div>
                               {category.description && (
-                                <p className="line-clamp-1 text-xs text-muted-foreground">
+                                <div className="text-xs text-muted-foreground line-clamp-1">
                                   {category.description}
-                                </p>
+                                </div>
                               )}
-                            </Link>
-                          </NavigationMenuLink>
+                            </div>
+                            {category.children &&
+                              category.children.length > 0 && (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground ml-2 flex-shrink-0" />
+                              )}
+                          </button>
+
+                          {/* Submenu */}
+                          {category.children &&
+                            category.children.length > 0 &&
+                            activeParent === category.id && (
+                              <div className="absolute left-full top-0 pl-1 z-50">
+                                <div className="bg-popover border rounded-md shadow-lg min-w-[240px]">
+                                  <ul className="py-2">
+                                    {category.children.map((child) => (
+                                      <li key={child.id}>
+                                        <button
+                                          onClick={() =>
+                                            handleCategoryClick(child.slug)
+                                          }
+                                          className="w-full flex items-center px-4 py-2.5 text-left hover:bg-accent transition-colors"
+                                        >
+                                          <div>
+                                            <div className="text-sm font-medium">
+                                              {child.name}
+                                            </div>
+                                            {child.description && (
+                                              <div className="text-xs text-muted-foreground line-clamp-1">
+                                                {child.description}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </button>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </div>
+                            )}
                         </li>
-                      ))
-                    ) : (
-                      <li className="p-3 text-sm text-muted-foreground">
-                        Đang tải...
-                      </li>
-                    )}
-                  </ul>
-                </NavigationMenuContent>
-              </NavigationMenuItem>
-            </NavigationMenuList>
-          </NavigationMenu>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="px-4 py-3 text-sm text-muted-foreground">
+                      Đang tải...
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Nav Links */}
           <div className="hidden md:flex items-center gap-1">
