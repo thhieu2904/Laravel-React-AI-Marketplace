@@ -244,14 +244,6 @@ export function AdminReviews() {
               <Card key={review.id} className="bg-white shadow-sm">
                 <CardContent className="p-4">
                   <div className="flex gap-4">
-                    <img
-                      src={
-                        review.product?.images?.[0]?.image_url ||
-                        "/placeholder.jpg"
-                      }
-                      alt={review.product?.name}
-                      className="w-16 h-16 object-cover rounded"
-                    />
                     <div className="flex-1">
                       <div className="flex items-start justify-between">
                         <div>

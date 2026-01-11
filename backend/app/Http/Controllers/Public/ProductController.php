@@ -117,7 +117,7 @@ class ProductController extends Controller
             ->active()
             ->with(['category:id,name,slug', 'images', 'reviews' => function ($q) {
                 $q->where('is_approved', true)
-                    ->with('customer:id,full_name,avatar')
+                    ->with('customer:id,full_name')
                     ->latest()
                     ->limit(10);
             }])

@@ -75,8 +75,7 @@ export function Cart() {
             const price =
               item.product.sale_price || item.product.original_price;
             const primaryImage =
-              item.product.images?.find((img) => img.is_primary)?.image_url ||
-              item.product.images?.[0]?.image_url ||
+              item.product.image ||
               "/placeholder.jpg";
 
             return (

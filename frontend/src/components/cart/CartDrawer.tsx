@@ -62,9 +62,7 @@ export function CartDrawer() {
                     item.product?.original_price ||
                     0;
                   const primaryImage =
-                    item.product?.images?.find((img) => img.is_primary)
-                      ?.image_url ||
-                    item.product?.images?.[0]?.image_url ||
+                    item.product?.image ||
                     "/placeholder.jpg";
 
                   return (

@@ -16,7 +16,7 @@ class ReviewController extends Controller
     {
         $reviews = Review::where('product_id', $productId)
             ->where('is_approved', true)
-            ->with('customer:id,full_name,avatar')
+            ->with('customer:id,full_name')
             ->orderBy('created_at', 'desc')
             ->paginate($request->get('per_page', 10));
 

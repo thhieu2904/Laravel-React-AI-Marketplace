@@ -16,7 +16,8 @@ class ReviewController extends Controller
     {
         $query = Review::with([
             'customer:id,email,full_name',
-            'product:id,name,slug'
+            'product:id,name,slug',
+            'product.images'
         ]);
 
         // Filter by approval status

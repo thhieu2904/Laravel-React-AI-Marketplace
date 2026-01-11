@@ -1,12 +1,21 @@
 // Cart Types
-import { Product } from "./product";
+export interface CartProduct {
+  id: number;
+  name: string;
+  slug: string;
+  original_price: number;
+  sale_price?: number;
+  current_price: number;
+  stock_quantity: number;
+  image?: string;
+}
 
 export interface CartItem {
   id: number;
-  cart_id: number;
+  cart_id?: number;
   product_id: number;
   quantity: number;
-  product: Product;
+  product: CartProduct;
   subtotal: number;
 }
 
